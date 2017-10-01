@@ -45,14 +45,29 @@ def run_gba_emulator(game):
     return subprocess.Popen(r'C:\Users\corn8\Desktop\mGBA-0.6.0-2017-07-16-win32\mGBA.exe ' + '"' + game + '"' + ' -f')
 
 
+def run_snes_emulator(game):
+    return subprocess.Popen(r'C:\Users\corn8\Desktop\snes9x\snes9x-x64.exe ' + '"' + game + '"' + ' -fullscreen')
+
+
 def shuffle_games(games):
-    return shuffle(games, len(games)), 0
+    return sample(games, len(games)), 0
+
+
+def start_the_first_game(games, seed_game):
+    if seed_game:
+        for game in games:
+            if seed_game in game.game_path.lower():
+                return game.emulator_function(game.game_path)
+        else:
+            return games[0].emulator_function(games[0].game_path)
+    else:
+        return games[0].emulator_function(games[0].game_path)
 
 
 Game = namedtuple('game', 'game_path emulator_function')
 
 
-def main():
+def main(seed_game=None):
     pygame.init()
     screen = pygame.display.set_mode([1, 1])
     done = False
@@ -64,13 +79,15 @@ def main():
     volume = 'down'
     last_time = time.time()
 
-    glob_pattern = os.path.join(r'C:\Users\corn8\Downloads\gba_roms', '*.zip')
-    gba_files = sorted(glob(glob_pattern), key=os.path.getctime)
+    gba_files = glob(os.path.join(r'C:\Users\corn8\Desktop\roms\gba_roms', '*.zip'))
+    gbc_files = glob(os.path.join(r'C:\Users\corn8\Desktop\roms\gbc_roms', '*.zip'))
+    snes_files = glob(os.path.join(r'C:\Users\corn8\Desktop\roms\snes_roms', '*.zip'))
     games = [Game(gba_file, run_gba_emulator) for gba_file in gba_files]
+    games += [Game(gbc_file, run_gba_emulator) for gbc_file in gbc_files]
+    games += [Game(snes_file, run_snes_emulator) for snes_file in snes_files]
     games = sample(games, len(games))
     game_idx = 1
-    game = games[0]
-    vba = game.emulator_function(game.game_path)
+    emulator_process = start_the_first_game(games, seed_game)
 
     print('starting... press crtl c to quit')
     while done==False:
@@ -81,14 +98,14 @@ def main():
         if not happened and now - last_time > 60 * 60 * 3 and 3 < time.localtime().tm_hour < 5:
             if game_idx == len(games):
                 games, game_idx = shuffle_games(games)
-            vba.terminate()
+            emulator_process.terminate()
             time.sleep(1)
             game = games[game_idx]
             game_idx += 1
             print('Now playing: ' + game.game_path)
-            vba = game.emulator_function(game.game_path)
+            emulator_process = game.emulator_function(game.game_path)
             last_time = now
+    pygame.quit ()
 
 
-main()
-pygame.quit ()
+fire.Fire(main)
