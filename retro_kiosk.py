@@ -7,40 +7,10 @@ from lib import runners, timing
 from config import locs
 from box import Box
 from pyautogui import press
-from pygame import JOYAXISMOTION, JOYHATMOTION, JOYBUTTONDOWN, JOYBUTTONUP
 from random import sample
 from glob import glob
 from collections import namedtuple
 from os.path import basename, join
-
-
-def handle_buttons(btns):
-    btns.something_happened = False
-    done = False
-    btn_val_map = {'a':0, 'b':1, 'x':2, 'y':3, 'l':4, 'r':5, 'select':6, 'start':7}
-    val_btn_map = {v: k for k, v in btn_val_map.items()}
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit ()
-            import sys; sys.exit() #meh, it's not exiting nicely, screw it
-            done=True
-        if event.type in [JOYAXISMOTION, JOYHATMOTION, JOYBUTTONDOWN, JOYBUTTONUP]:
-            if event.type == JOYBUTTONDOWN and event.button < 8:
-                btn = val_btn_map[event.button]
-                btns[btn] = 1
-            elif event.type == JOYBUTTONUP and event.button < 8:
-                btn = val_btn_map[event.button]
-                btns[btn] = 0
-            btns.something_happened = True
-    init_joysticks()
-    return btns, done
-
-
-def init_joysticks():
-    joystick_count = pygame.joystick.get_count()
-    for i in range(joystick_count):
-        joystick = pygame.joystick.Joystick(i)
-        joystick.init()
 
 
 def turn_it_up_or_down(happened, volume, timings):
@@ -77,14 +47,8 @@ def start_the_first_game(games, seed_game):
 Game = namedtuple('game', 'game_path emulator_function')
 
 
-def time_to_swap_games(timings):
-    been_8_hours_since_change = timings.current_time - timings.last_time_swapped > 60 * 60 * 8
-    been_20_mins_since_idle = timings.current_time - timings.last_time_idle > 60 * 20
-    between_3_and_5am = 3 < time.localtime().tm_hour < 5
-    return been_3_hours_since_change and between_3_and_5am and been_1_min_since_idle
-
-
-def swap_games(games, game_idx, emulator_process, timings):
+def swap_games(games, game_idx, emulator_process, timings, buttons):
+    print('---forcing override')
     games, game_idx = shuffle_games_if_last_one(games, game_idx)
     old_emulator_process = emulator_process
     game = games[game_idx]
@@ -95,7 +59,11 @@ def swap_games(games, game_idx, emulator_process, timings):
     old_emulator_process.terminate()
     timings.last_time_idle = current_time
     timings.last_time_swapped = current_time
-    return games, game_idx, emulator_process, timings
+    time.sleep(2)
+    for key in buttons.keys():
+        buttons[key] = 0
+        buttons.something_happened = False
+    return games, game_idx, emulator_process, timings, buttons
 
 
 def pid_is_running(pid):
@@ -128,6 +96,7 @@ def main(seed_game=None):
     multiplayer_games = [Game(r"C:\Program Files (x86)\Steam\steamapps\common\TowerFall\TowerFall.exe", runners.run_steam_exe_game)]
     game_idx = 1
     emulator_process = start_the_first_game(multiplayer_games, seed_game)
+    running_game = Box({'games': games, 'game_idx': 1, 'game_process': emulator_process})
 
     print('starting... press crtl c to quit')
     while not done:
@@ -137,24 +106,14 @@ def main(seed_game=None):
         buttons, done = handle_buttons(buttons)
         volume, timings = turn_it_up_or_down(buttons.something_happened, volume, timings)
 
-        if not buttons.something_happened and time_to_swap_games(timings):
-            games, game_idx, emulator_process, timings = swap_games(games, game_idx, emulator_process, timings)
+        if not buttons.something_happened and timing.time_to_swap_games(timings):
+            running_game, timings, buttons = swap_games(running_game, timings, buttons)
         if all([buttons[x] for x in ['something_happened', 'a', 'b', 'l', 'r', 'start']]):
-            print('---forcing game override because the last game sucked')
-            games, game_idx, emulator_process = swap_games(games, game_idx, emulator_process)
-            last_time_swapped = current_time
-            time.sleep(2)
-            for key in buttons.keys():
-                buttons[key] = 0
-                buttons.something_happened = False
+            running_game, timings, buttons = swap_games(running_game, timings, buttons)
         elif all([buttons[x] for x in ['something_happened', 'a', 'b', 'l', 'r', 'select']]):
-            print('---starting multiplayer')
-            _, _, emulator_process = swap_games(multiplayer_games, 0, emulator_process)
-            last_time_swapped = current_time
-            time.sleep(2)
-            for key in buttons.keys():
-                buttons[key] = 0
-                buttons.something_happened = False
+            running_game_temp = Box({'games': multiplayer_games, 'game_idx': 0, 'game_process': running_game.game_process})
+            running_game_temp, timings, buttons = swap_games(running_game_temp, timings, buttons)
+            running_game.game_process = running_game_temp.game_process
     pygame.quit ()
 
 
