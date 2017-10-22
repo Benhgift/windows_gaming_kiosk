@@ -20,7 +20,7 @@ def turn_it_up_or_down(happened, volume, timings):
             volume = 'up'
         timings.last_time_idle = timings.current_time
     else:
-        if timings.current_time - timings.last_time_idle > 23 and volume == 'up':
+        if timings.current_time - timings.last_time_idle > 30 and volume == 'up':
             [press('volumedown') for _ in range(30)]
             volume = 'down'
     return volume, timings
@@ -47,7 +47,8 @@ def start_the_first_game(games, seed_game):
 Game = namedtuple('game', 'game_path emulator_function')
 
 
-def swap_games(games, game_idx, emulator_process, timings, buttons):
+def swap_games(running_game, timings, buttons):
+    games, game_idx, emulator_process = running_game.games, running_game.game_idx, running_game.game_process
     print('---forcing override')
     games, game_idx = shuffle_games_if_last_one(games, game_idx)
     old_emulator_process = emulator_process
@@ -56,14 +57,19 @@ def swap_games(games, game_idx, emulator_process, timings, buttons):
     print('Now playing: ' + game.game_path)
     emulator_process = game.emulator_function(game.game_path)
     time.sleep(1)
-    old_emulator_process.terminate()
-    timings.last_time_idle = current_time
-    timings.last_time_swapped = current_time
-    time.sleep(2)
+    try:
+        old_emulator_process.terminate()
+    except:
+        print('===couldn\'t find the game')
+    timings.last_time_idle = timings.current_time
+    timings.last_time_swapped = timings.current_time
     for key in buttons.keys():
         buttons[key] = 0
         buttons.something_happened = False
-    return games, game_idx, emulator_process, timings, buttons
+    running_game.games = games
+    running_game.game_idx = game_idx
+    running_game.game_process = emulator_process
+    return running_game, timings, buttons
 
 
 def pid_is_running(pid):
