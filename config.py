@@ -12,4 +12,4 @@ locs = {
 
     'snes_emu': join(root, 'snes9x', 'snes9x-x64.exe'),
     'snes_games': join(root, 'roms', 'snes_roms'),
-
+}

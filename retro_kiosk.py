@@ -3,7 +3,7 @@ import time
 import subprocess
 import fire
 import psutil
-from lib import runners, timing
+from lib import runners, timing, controller
 from config import locs
 from box import Box
 from pyautogui import press
@@ -103,7 +103,7 @@ def main(seed_game=None):
         time.sleep(.1)
         clock.tick(20)
         timings.current_time = time.time()
-        buttons, done = handle_buttons(buttons)
+        buttons, done = controller.handle_buttons(buttons)
         volume, timings = turn_it_up_or_down(buttons.something_happened, volume, timings)
 
         if not buttons.something_happened and timing.time_to_swap_games(timings):
