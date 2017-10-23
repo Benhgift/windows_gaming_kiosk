@@ -2,7 +2,7 @@ import pygame
 from pygame import JOYAXISMOTION, JOYHATMOTION, JOYBUTTONDOWN, JOYBUTTONUP
 
 
-def handle_buttons(btns):
+def handle_buttons(btns, loop_num):
     btns.something_happened = False
     done = False
     btn_val_map = {'a':0, 'b':1, 'x':2, 'y':3, 'l':4, 'r':5, 'select':6, 'start':7}
@@ -20,7 +20,6 @@ def handle_buttons(btns):
                 btn = val_btn_map[event.button]
                 btns[btn] = 0
             btns.something_happened = True
-    init_joysticks()
     return btns, done
 
 

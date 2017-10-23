@@ -83,7 +83,7 @@ def main(seed_game=None):
     clock = pygame.time.Clock()
     buttons = Box({'something_happened':False, 'a':0, 'b':0, 'x':0, 'y':0, 'l':0, 'r':0, 'select':0, 'start':0})
 
-    pygame.joystick.init()
+    controller.init_joysticks()
 
     [press('volumedown') for _ in range(50)]
     volume = 'down'
@@ -105,11 +105,12 @@ def main(seed_game=None):
     running_game = Box({'games': games, 'game_idx': 1, 'game_process': emulator_process})
 
     print('starting... press crtl c to quit')
+    loop_num = 1
     while not done:
         time.sleep(.1)
         clock.tick(20)
         timings.current_time = time.time()
-        buttons, done = controller.handle_buttons(buttons)
+        buttons, done = controller.handle_buttons(buttons, loop_num)
         volume, timings = turn_it_up_or_down(buttons.something_happened, volume, timings)
 
         if not buttons.something_happened and timing.time_to_swap_games(timings):
@@ -120,6 +121,9 @@ def main(seed_game=None):
             running_game_temp = Box({'games': multiplayer_games, 'game_idx': 0, 'game_process': running_game.game_process})
             running_game_temp, timings, buttons = swap_games(running_game_temp, timings, buttons)
             running_game.game_process = running_game_temp.game_process
+        loop_num += 1
+        if loop_num > 9000: 
+            loop_num = 1
     pygame.quit ()
 
 
